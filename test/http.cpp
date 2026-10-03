@@ -14,5 +14,10 @@ int main() {
 
   SocketStream stream(fd[1]);
   assert(stream.get_token(" ") == "GET");
+  assert(stream.get_token(" ") == "/");
+  assert(stream.get_token("\r\n") == "HTTP/1.1");
+  assert(stream.get_token("\r\n") == "Host: localhost:8080");
+  assert(stream.get_token("\r\n") == "User-Agent: curl/8.22.0");
+  assert(stream.get_token("\r\n") == "Accept: */*");
   std::cout << "Test cleared!" << std::endl;
 }

@@ -50,13 +50,17 @@ HttpRequest read_sock(int sfd) {
   if (stream.get_token(" ") == "GET") {
     req.method = GET;
   }
-  std::string path = stream.get_token(" ");
-  std::string version = stream.get_token("\r\n");
-  std::string header1 = stream.get_token("\r\n");
-  std::string header2 = stream.get_token("\r\n");
-  std::string header3 = stream.get_token("\r\n");
-  std::string header4 = stream.get_token("\r\n");
 
-  close(sfd);
+  // Parse path
+  req.path = stream.get_token(" ");
+
+  // Parse version
+  // version = HTTP/1.1
+  std::string version = stream.get_token("\r\n");
+  req.version = std::stof(version.substr(5));
+
+  // Get headers
+  std::string headers = stream.get_token("\r\n\r\n");
+
   return req;
 }

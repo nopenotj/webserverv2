@@ -28,7 +28,11 @@ struct Request {
 
 void handle_req(Request req) {
   logger.log(std::format("Parsing fd={}", req.sock));
-  read_sock(req.sock);
+  HttpRequest http_req = read_sock(req.sock);
+
+  char response[] = "HTTP/1.1 200 Nice\r\n";
+  write(req.sock, response, sizeof(response) - 1);
+  close(req.sock);
 }
 
 int main(int argc, char **argv) {

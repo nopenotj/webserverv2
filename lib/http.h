@@ -5,7 +5,7 @@ enum Method {
 };
 struct HttpRequest {
   Method method;
-  char *path;
+  std::string path;
   float version;
   std::unordered_map<std::string, std::string> headers;
   char *content;
