@@ -1,6 +1,6 @@
 #include "http.h"
 #include "log.h"
-#include <cctype>
+#include "string.h"
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -100,14 +100,6 @@ HttpRequest parse_http_meta(const std::string &raw, HttpRequest &req) {
   }
 
   return req;
-}
-
-std::string lower(const std::string &s) {
-  std::string res;
-  for (const auto &c : s) {
-    res.push_back(tolower(c));
-  }
-  return res;
 }
 
 HttpRequest read_sock(int sfd) {

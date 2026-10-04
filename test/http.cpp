@@ -15,7 +15,7 @@ void test_http_socket_stream() {
 
   SocketStream stream(fd[1]);
   testkit::is_equal(stream.get_token(" "), "GET");
-  testkit::is_equal(stream.get_token(" "), "/ siadsa");
+  testkit::is_equal(stream.get_token(" "), "/");
   testkit::is_equal(stream.get_token("\r\n"), "HTTP/1.1");
   testkit::is_equal(stream.get_token("\r\n"), "Host: localhost:8080");
   testkit::is_equal(stream.get_token("\r\n"), "User-Agent: curl/8.22.0");
