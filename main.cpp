@@ -1,15 +1,12 @@
 
 #include "lib/http.h"
 #include "lib/log.h"
-#include <iostream>
 
 #include <format>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
-
-Logger logger(std::cout);
 
 struct Options {
   int port;
