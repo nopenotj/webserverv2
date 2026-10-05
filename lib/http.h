@@ -21,5 +21,12 @@ public:
   char *end;
   SocketStream(int socket_fd);
   std::string get_token(const std::string &delim);
+  std::string get(int n);
+
+private:
+  /*Helper function to fill the internal buff*/
+  void fill();
+  bool buf_empty() { return curr == end; }
 };
 HttpRequest read_sock(int sfd);
+int get_content_length(const HttpRequest &req);

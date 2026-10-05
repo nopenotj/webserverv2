@@ -1,11 +1,11 @@
 #include "http.h"
 #include "log.h"
 #include "string.h"
+#include <stdexcept>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <unordered_map>
-#include <vector>
 
 SocketStream::SocketStream(int socket_fd) : socket_fd(socket_fd), buf() {
   end = curr = buf;
@@ -13,35 +13,46 @@ SocketStream::SocketStream(int socket_fd) : socket_fd(socket_fd), buf() {
 
 std::string SocketStream::get_token(const std::string &delim) {
 
-  std::vector<char> token;
-  bool found_delim = false;
-  while (!found_delim) {
+  std::string token;
 
-    if (curr == end) {
-      int len = recv(this->socket_fd, buf, sizeof(buf), 0);
-      end = buf + len;
-      curr = buf;
-    }
+  // Initial fill
+  if (buf_empty())
+    fill();
 
-    // Check if we have hit the delim
-    bool is_delim = true;
-    for (int i = 0; i < delim.size(); i++) {
-      if (curr + i == end || *(curr + i) != delim.at(i)) {
-        is_delim = false;
-        break;
+  // Try to get token
+  while (!buf_empty()) {
+    for (; curr != end; curr++) {
+      // Put into stack
+      token.push_back(*curr);
+
+      // Check delim
+      if (token.length() >= delim.length() &&
+          token.compare(token.length() - delim.length(), delim.length(),
+                        delim) == 0) {
+
+        curr++;
+        return token.substr(0, token.length() - delim.length());
       }
     }
 
-    if (is_delim) {
-      found_delim = true;
-      curr += delim.size();
-    } else {
-      token.push_back(*curr);
-      curr += 1;
-    }
+    // Fill buff
+    fill();
+  }
+  throw std::runtime_error("End of buffer");
+}
+std::string SocketStream::get(int n) {
+  std::string res;
+
+  for (int i = 0; i < n; i++) {
   }
 
-  return std::string(token.begin(), token.end());
+  return res;
+}
+void SocketStream::fill() {
+  int len = recv(this->socket_fd, buf, sizeof(buf), 0);
+  end = buf + len;
+  curr = buf;
+  return;
 }
 
 HttpRequest parse_http_meta(const std::string &raw, HttpRequest &req) {
@@ -93,8 +104,8 @@ HttpRequest parse_http_meta(const std::string &raw, HttpRequest &req) {
 
     // Split key and value
     int splt_idx = header.find(":");
-    std::string key = header.substr(0, splt_idx);
-    std::string value = header.substr(splt_idx + 1);
+    std::string key = trim(header.substr(0, splt_idx));
+    std::string value = trim(header.substr(splt_idx + 1));
 
     req.headers[key] = value;
   }
@@ -109,11 +120,19 @@ HttpRequest read_sock(int sfd) {
   std::string meta = stream.get_token("\r\n\r\n") + "\r\n";
   parse_http_meta(meta, req);
 
+  get_content_length(req);
+
+  return req;
+}
+int get_content_length(const HttpRequest &req) {
+
+  int content_length = 0;
   for (const auto &[key, value] : req.headers) {
     if (lower(key) == "content-length") {
       logger.log("Content-length detected" + value);
+      content_length = std::stoi(value);
     }
   }
 
-  return req;
+  return content_length;
 }
