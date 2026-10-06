@@ -21,3 +21,9 @@ void test_http_socket_stream() {
   testkit::is_equal(stream.get_token("\r\n"), "User-Agent: curl/8.22.0");
   testkit::is_equal(stream.get_token("\r\n"), "Accept: */*");
 }
+void test_http_method_conversions() {
+  testkit::is_equal(to_string(GET), "GET");
+  testkit::is_equal(to_string(PUT), "PUT");
+  testkit::is_equal(to_string(POST), "POST");
+  testkit::is_equal(to_string(DELETE), "DELETE");
+}

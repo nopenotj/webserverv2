@@ -1,6 +1,7 @@
 #include "http.h"
 #include "log.h"
 #include "string.h"
+#include <format>
 #include <stdexcept>
 #include <string>
 #include <sys/socket.h>
@@ -42,11 +43,26 @@ std::string SocketStream::get_token(const std::string &delim) {
 }
 std::string SocketStream::get(int n) {
   std::string res;
+  int i = 0;
 
-  for (int i = 0; i < n; i++) {
+  if (buf_empty())
+    fill();
+
+  while (!buf_empty() && i < n) {
+
+    res.push_back(*curr);
+    curr++;
+    i++;
+
+    if (i == n)
+      return res;
+
+    // Fill if needed
+    if (buf_empty())
+      fill();
   }
 
-  return res;
+  throw std::logic_error("Unexpected error");
 }
 void SocketStream::fill() {
   int len = recv(this->socket_fd, buf, sizeof(buf), 0);
@@ -82,9 +98,8 @@ HttpRequest parse_http_meta(const std::string &raw, HttpRequest &req) {
   pos += len + 2;
 
   // Parse method
-  if (method == "GET") {
-    req.method = GET;
-  }
+  req.method = to_method(method);
+
   // Parse version
   // version = HTTP/1.1
   req.version = std::stof(httpversion.substr(5));
@@ -113,6 +128,36 @@ HttpRequest parse_http_meta(const std::string &raw, HttpRequest &req) {
   return req;
 }
 
+Method to_method(const std::string &s) {
+  if (s == "GET") {
+    return GET;
+  }
+  if (s == "PUT") {
+    return PUT;
+  }
+  if (s == "POST") {
+    return POST;
+  }
+  if (s == "DELETE") {
+    return DELETE;
+  }
+  throw std::invalid_argument("Invalid enum for Method");
+}
+std::string to_string(Method m) {
+  switch (m) {
+  case GET:
+    return "GET";
+  case PUT:
+    return "PUT";
+  case POST:
+    return "POST";
+  case DELETE:
+    return "DELETE";
+  default:
+    throw std::invalid_argument("Invalid enum for Method");
+  }
+}
+
 HttpRequest read_sock(int sfd) {
   SocketStream stream(sfd);
   HttpRequest req;
@@ -120,16 +165,17 @@ HttpRequest read_sock(int sfd) {
   std::string meta = stream.get_token("\r\n\r\n") + "\r\n";
   parse_http_meta(meta, req);
 
-  get_content_length(req);
+  int content_length = get_content_length(req);
 
+  req.content = stream.get(content_length);
   return req;
 }
+
 int get_content_length(const HttpRequest &req) {
 
   int content_length = 0;
   for (const auto &[key, value] : req.headers) {
     if (lower(key) == "content-length") {
-      logger.log("Content-length detected" + value);
       content_length = std::stoi(value);
     }
   }

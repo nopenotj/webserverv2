@@ -2,6 +2,7 @@
 #include "lib/http.h"
 #include "lib/log.h"
 
+#include <arpa/inet.h>
 #include <format>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -24,17 +25,21 @@ struct Request {
 };
 
 void handle_req(Request req) {
-  logger.log(std::format("Parsing fd={}", req.sock));
   HttpRequest http_req = read_sock(req.sock);
+
+  // max is 16: 255.255.255.255\0
+  char in_addr[16];
+  inet_ntop(AF_INET, &req.in_addr.sin_addr, in_addr, req.in_addr_len);
+  logger.log(std::format("{} - {} {} HTTP/{:.1f} {}", in_addr,
+                         to_string(http_req.method), http_req.path,
+                         http_req.version, http_req.content));
 
   char response[] = "HTTP/1.1 200 Nice\r\n";
   write(req.sock, response, sizeof(response) - 1);
   close(req.sock);
 }
 
-int main(int argc, char **argv) {
-
-  Options opt = parse_args(argc, argv);
+void run_server(Options opt) {
 
   // Didnt go down the RTFM route and just followed
   // https://www.geeksforgeeks.org/cpp/socket-programming-in-cpp/
@@ -69,4 +74,9 @@ int main(int argc, char **argv) {
     std::thread t(handle_req, std::move(req));
     t.detach();
   }
+}
+int main(int argc, char **argv) {
+
+  Options opt = parse_args(argc, argv);
+  run_server(opt);
 }

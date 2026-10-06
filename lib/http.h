@@ -2,13 +2,18 @@
 #include <unordered_map>
 enum Method {
   GET,
+  PUT,
+  POST,
+  DELETE,
 };
+Method to_method(const std::string &s);
+std::string to_string(Method m);
 struct HttpRequest {
   Method method;
   std::string path;
   float version;
   std::unordered_map<std::string, std::string> headers;
-  char *content;
+  std::string content;
   int content_len;
 };
 
