@@ -1,5 +1,14 @@
+#include <netinet/in.h>
 #include <string>
+#include <sys/socket.h>
 #include <unordered_map>
+
+struct IncomingConn {
+  socklen_t in_addr_len;
+  sockaddr_in in_addr;
+  int sock;
+};
+
 enum Method {
   GET,
   PUT,
@@ -35,3 +44,4 @@ private:
 };
 HttpRequest read_sock(int sfd);
 int get_content_length(const HttpRequest &req);
+void run_server(std::string host, int port);

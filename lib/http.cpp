@@ -1,10 +1,14 @@
 #include "http.h"
 #include "log.h"
 #include "string.h"
+#include <arpa/inet.h>
+#include <cstdint>
 #include <format>
+#include <netinet/in.h>
 #include <stdexcept>
 #include <string>
 #include <sys/socket.h>
+#include <thread>
 #include <unistd.h>
 #include <unordered_map>
 
@@ -181,4 +185,59 @@ int get_content_length(const HttpRequest &req) {
   }
 
   return content_length;
+}
+
+void handle_req(IncomingConn conn) {
+  HttpRequest http_req = read_sock(conn.sock);
+
+  // max is 16: 255.255.255.255\0
+  char in_addr[16];
+  inet_ntop(AF_INET, &conn.in_addr.sin_addr, in_addr, conn.in_addr_len);
+  logger.info(std::format("{} - {} {} HTTP/{:.1f} {}", in_addr,
+                          to_string(http_req.method), http_req.path,
+                          http_req.version, http_req.content));
+
+  char response[] = "HTTP/1.1 200 Hello there\r\n";
+  write(conn.sock, response, sizeof(response) - 1);
+  close(conn.sock);
+}
+
+void run_server(std::string host, int port) {
+
+  // Convert opts to actual server params
+  uint32_t ip;
+  inet_pton(AF_INET, host.c_str(), &ip);
+
+  // Didnt go down the RTFM route and just followed
+  // https://www.geeksforgeeks.org/cpp/socket-programming-in-cpp/
+
+  // Obtain a socket, wtf is protocol of the socket? domain = ipv4, type = tcp,
+  // protocol = ?
+  int sock = socket(AF_INET, SOCK_STREAM, 0);
+  // Allow rebinding while the old socket is still in TIME_WAIT
+  int reuse = 1;
+  setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+  // converts from host byte order to network byte order
+  sockaddr_in addr{AF_INET, htons(port), ip};
+
+  logger.info("Binding to socket..");
+  // Bind to address
+  if (bind(sock, (sockaddr *)&addr, sizeof(addr))) {
+    throw std::runtime_error("Unable to bind to port");
+  }
+
+  logger.info("Listening to socket...");
+  listen(sock, 3);
+  while (1) {
+    IncomingConn req;
+    req.in_addr_len = sizeof(req.in_addr);
+    req.sock = accept(sock, (sockaddr *)&req.in_addr, &req.in_addr_len);
+
+    if (req.sock == -1)
+      continue;
+
+    // Following : https://www.geeksforgeeks.org/cpp/multithreading-in-cpp/
+    std::thread t(handle_req, std::move(req));
+    t.detach();
+  }
 }

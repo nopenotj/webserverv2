@@ -2,4 +2,4 @@
 #include <iostream>
 
 Logger logger(std::cout);
-void Logger::log(const std::string &msg) { this->dest << msg << std::endl; }
+void Logger::info(const std::string &msg) { this->dest << msg << std::endl; }
