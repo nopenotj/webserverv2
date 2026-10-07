@@ -170,8 +170,8 @@ HttpRequest read_sock(int sfd) {
   parse_http_meta(meta, req);
 
   int content_length = get_content_length(req);
-
-  req.content = stream.get(content_length);
+  if (content_length)
+    req.content = stream.get(content_length);
   return req;
 }
 
