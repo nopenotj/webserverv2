@@ -1,3 +1,4 @@
+#pragma once
 #include <functional>
 #include <netinet/in.h>
 #include <string>
@@ -30,6 +31,7 @@ struct HttpRequest {
 struct HttpResponse {
   int status_code;
   std::string content;
+  std::unordered_map<std::string, std::string> headers;
 };
 
 #define BUFF_SIZE 1024

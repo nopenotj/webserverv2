@@ -3,6 +3,7 @@
 #include "string.h"
 #include <arpa/inet.h>
 #include <cstdint>
+#include <exception>
 #include <format>
 #include <netinet/in.h>
 #include <stdexcept>
@@ -188,30 +189,44 @@ int get_content_length(const HttpRequest &req) {
 }
 
 void send(HttpResponse res, int sock) {
+  if (res.content.length() > 0)
+    res.headers["content-length"] = std::to_string(res.content.length());
+  std::string headers_str;
+  for (const auto &[key, val] : res.headers) {
+    headers_str += std::format("{}:{}\r\n", key, val);
+  }
   std::string raw_resp =
-      std::format("HTTP/1.1 {} {}\r\n", res.status_code, "Random Message");
+      std::format("HTTP/1.1 {} {}\r\n{}\r\n", res.status_code, "Random Message",
+                  headers_str);
+
   write(sock, raw_resp.c_str(), raw_resp.length());
+  write(sock, res.content.c_str(), res.content.length());
 }
 
 void Server::handle_req(IncomingConn conn) {
-  HttpRequest http_req = read_sock(conn.sock);
+  try {
+    HttpRequest http_req = read_sock(conn.sock);
 
-  // max is 16: 255.255.255.255\0
-  char in_addr[16];
-  inet_ntop(AF_INET, &conn.in_addr.sin_addr, in_addr, conn.in_addr_len);
-  logger.info(std::format("{} - {} {} HTTP/{:.1f} {}", in_addr,
-                          to_string(http_req.method), http_req.path,
-                          http_req.version, http_req.content));
+    // max is 16: 255.255.255.255\0
+    char in_addr[16];
+    inet_ntop(AF_INET, &conn.in_addr.sin_addr, in_addr, conn.in_addr_len);
+    logger.info(std::format("{} - {} {} HTTP/{:.1f} {}", in_addr,
+                            to_string(http_req.method), http_req.path,
+                            http_req.version, http_req.content));
 
-  HttpResponse response;
-  response.status_code = 500;
+    // Default response
+    HttpResponse response;
+    response.status_code = 500;
 
-  // Call the handler
-  if (handlers.contains(http_req.path))
-    response = handlers[http_req.path](http_req);
+    // Call the handler
+    if (handlers.contains(http_req.path))
+      response = handlers[http_req.path](http_req);
 
-  send(response, conn.sock);
-  close(conn.sock);
+    send(response, conn.sock);
+  } catch (...) {
+    // Catch all for all things that could go wrong hehe
+    close(conn.sock);
+  }
 }
 
 void Server::run(std::string host, int port) {
