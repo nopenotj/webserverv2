@@ -18,7 +18,7 @@ Options parse_args(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
-
   Options opt = parse_args(argc, argv);
-  run_server(opt.host, opt.port);
+  Server app;
+  app.run(opt.host, opt.port);
 }

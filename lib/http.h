@@ -1,3 +1,4 @@
+#include <functional>
 #include <netinet/in.h>
 #include <string>
 #include <sys/socket.h>
@@ -26,6 +27,11 @@ struct HttpRequest {
   int content_len;
 };
 
+struct HttpResponse {
+  int status_code;
+  std::string content;
+};
+
 #define BUFF_SIZE 1024
 class SocketStream {
 public:
@@ -44,4 +50,14 @@ private:
 };
 HttpRequest read_sock(int sfd);
 int get_content_length(const HttpRequest &req);
-void run_server(std::string host, int port);
+
+typedef std::function<HttpResponse(const HttpRequest &)> Handler;
+
+class Server {
+  std::unordered_map<std::string, Handler> handlers;
+  void handle_req(IncomingConn conn);
+
+public:
+  void add_handler(const std::string &path, Handler fn) { handlers[path] = fn; }
+  void run(std::string host, int port);
+};

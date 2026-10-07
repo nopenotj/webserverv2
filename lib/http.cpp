@@ -187,7 +187,13 @@ int get_content_length(const HttpRequest &req) {
   return content_length;
 }
 
-void handle_req(IncomingConn conn) {
+void send(HttpResponse res, int sock) {
+  std::string raw_resp =
+      std::format("HTTP/1.1 {} {}\r\n", res.status_code, "Random Message");
+  write(sock, raw_resp.c_str(), raw_resp.length());
+}
+
+void Server::handle_req(IncomingConn conn) {
   HttpRequest http_req = read_sock(conn.sock);
 
   // max is 16: 255.255.255.255\0
@@ -197,12 +203,18 @@ void handle_req(IncomingConn conn) {
                           to_string(http_req.method), http_req.path,
                           http_req.version, http_req.content));
 
-  char response[] = "HTTP/1.1 200 Hello there\r\n";
-  write(conn.sock, response, sizeof(response) - 1);
+  HttpResponse response;
+  response.status_code = 500;
+
+  // Call the handler
+  if (handlers.contains(http_req.path))
+    response = handlers[http_req.path](http_req);
+
+  send(response, conn.sock);
   close(conn.sock);
 }
 
-void run_server(std::string host, int port) {
+void Server::run(std::string host, int port) {
 
   // Convert opts to actual server params
   uint32_t ip;
@@ -237,7 +249,7 @@ void run_server(std::string host, int port) {
       continue;
 
     // Following : https://www.geeksforgeeks.org/cpp/multithreading-in-cpp/
-    std::thread t(handle_req, std::move(req));
+    std::thread t(&Server::handle_req, this, std::move(req));
     t.detach();
   }
 }
